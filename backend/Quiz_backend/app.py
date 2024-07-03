@@ -1,5 +1,3 @@
-
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
@@ -7,9 +5,7 @@ from bson import ObjectId
 from pydantic import BaseModel, Field
 from typing import List
 
-
 app = FastAPI()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,11 +15,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 client = MongoClient('mongodb://localhost:27017/')
 db = client['quiz_db']
 questions_collection = db['questions']
-
 
 
 class Answer(BaseModel):
@@ -40,7 +34,6 @@ class Question(BaseModel):
 class CheckResponse(BaseModel):
     question_id: str
     option_selected: int = Field(..., ge=1, le=4)
-
 
 
 @app.post('/check_response', response_model=dict)
@@ -62,6 +55,12 @@ def check_response(response: CheckResponse):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post('/questions')
+def create_question(question: Question):
+    questions_collection.insert_one(question.dict())
+    return question
 
 
 @app.get('/questions')
@@ -93,26 +92,6 @@ def get_question_by_id(question_id: str):
             return formatted_question
         else:
             raise HTTPException(status_code=404, detail="Question not found")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post('/check_response', response_model=dict)
-def check_response(response: dict):
-    try:
-        question = questions_collection.find_one({"_id": ObjectId(response.question_id)})
-
-        if not question:
-            raise HTTPException(status_code=404, detail="Question not found")
-
-        selected_option = next((opt for opt in question['options'] if opt['option_id'] == response.option_selected),
-                               None)
-
-        if selected_option['text'].strip().lower() == question['answer'].strip().lower():
-            return {"status": "Successful", "correct": True}
-        else:
-            return {"status": "Unsuccessful", "correct": False}
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
